@@ -61,34 +61,35 @@ const resolver: Resolvers = {
           raw: true,
         });
 
-        let retrievedChannelId: string;
-        const channelPromises = [];
+        const channelIds = [];
+        channels.forEach((channel) => channelIds.push(channel.id));
 
-        channels.forEach((channel, index) => {
-          channelPromises[index++] = channelModel.findOne({
-            attributes: [[sequelize.fn('COUNT', sequelize.col('channelId')), 'numOfMemberships']],
-            where: {
-              id: channel.id,
+        const channels2 = await channelModel.findAll({
+          having: sequelize.where(
+            sequelize.fn('COUNT', sequelize.col('channelId')),
+            { [Op.in]: [authUsers.length] },
+          ),
+          group: ['channelId'],
+          attributes: [
+            'memberships.channelId',
+            [sequelize.fn('COUNT', sequelize.col('channelId')), 'numOfMemberships'],
+          ],
+          where: {
+            id: channelIds,
+          },
+          include: [
+            {
+              model: membershipModel,
+              as: 'memberships',
+              attributes: [
+                'channelId',
+              ],
             },
-            group: ['channelId'],
-            include: [
-              {
-                model: membershipModel,
-                as: 'memberships',
-                attributes: [
-                  'channelId',
-                ],
-              },
-            ],
-            raw: true,
-          }).then((foundChannel) => {
-            if (foundChannel.numOfMemberships === authUsers.length) {
-              retrievedChannelId = channel.id;
-            }
-          });
+          ],
+          raw: true,
         });
 
-        await Promise.all(channelPromises);
+        let retrievedChannelId = channels2[0] ? channels2[0]['channelId'] : null;
 
         if (!retrievedChannelId) {
           const channel = await channelModel.create(
