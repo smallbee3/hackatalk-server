@@ -11,7 +11,10 @@ const sequelize = new Sequelize(
     define: config.define,
     dialectOptions: config.dialectOption,
     pool: config.pool,
-    logging: false,
+    logging: (...query) => {
+      console.log('\x1b[34m', `\n[${query[1]['model']?.name}] ${query[1]['type']} statement :`);
+      console.log('\x1b[36m', query[0], '\n');
+    },
   },
 );
 
